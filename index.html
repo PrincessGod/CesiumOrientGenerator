@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>CesiumOrientGenerator</title>
+    <script src="./node_modules/cesium/Build/Cesium/Cesium.js"></script>
+    <style>
+        @import url(./node_modules/cesium/Build/Cesium/Widgets/widgets.css);
+        html, body, #cesiumContainer {
+            width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+    <div id="cesiumContainer"></div>
+    <script>
+        var viewer = new Cesium.Viewer('cesiumContainer');
+
+        fetch('http://localhost:3000/name')
+            .then(response => response.json())
+            .then(json => console.log(json))
+            .catch(err => console.log(err));
+
+        fetch('http://localhost:3000/name', {
+            method: 'post',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                name: 'insert'
+            })
+        })
+        .then(response => console.log(response))
+        .catch(err => console.log(err));
+    </script>
+</body>
+</html>
