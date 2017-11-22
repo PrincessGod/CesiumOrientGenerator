@@ -8,9 +8,7 @@ var browserSync = require('browser-sync').create();
 
 var dbDir = 'db';
 var dbName = 'data.json';
-var dbJson = {
-    'name': []
-};
+var dbJson = fsExtra.readJsonSync('dbTemplate.json');
 var dbPath = path.join(dbDir, dbName);
 
 gulp.task('recreateDb', function() {
@@ -39,4 +37,25 @@ gulp.task('server', ['db'], function() {
     });
 });
 
+gulp.task('dbContinue', function() {
+    var server = jsonServer.create();
+    var router = jsonServer.router(dbPath);
+    var middlewares = jsonServer.defaults();
+    server.use(middlewares);
+    server.use(router);
+    server.listen(3000, function() {
+        console.log('JSON Server is running');
+    });
+});
+
+gulp.task('serverContinue', ['dbContinue'], function() {
+    browserSync.init({
+        server: {
+            baseDir: './'
+        },
+        port: 3001
+    });
+});
+
+gulp.task('continue', ['serverContinue']);
 gulp.task('default', ['server']);

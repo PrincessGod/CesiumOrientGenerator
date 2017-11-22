@@ -6,35 +6,40 @@
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>CesiumOrientGenerator</title>
     <script src="./node_modules/cesium/Build/Cesium/Cesium.js"></script>
+    <link rel="stylesheet" href="./bootstrap-4.0.0/css/bootstrap.min.css">
     <style>
         @import url(./node_modules/cesium/Build/Cesium/Widgets/widgets.css);
         html, body, #cesiumContainer {
             width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden;
+             
+        }
+        #cesiumContainer {
+            width:-moz-calc(100% - 300px); width:-webkit-calc(100% - 300px); width: calc(100% - 300px);
+            margin-left: 300px;
+        }
+        div.control {
+            position: absolute;
+            top: 0px;
+            left: 0px;
+            width: 300px;
+            height: 100%;
+            padding: 10px 15px;
+            overflow: auto;
+            background-color: rgb(255, 255, 255);
         }
     </style>
 </head>
 <body>
     <div id="cesiumContainer"></div>
-    <script>
-        var viewer = new Cesium.Viewer('cesiumContainer');
-
-        fetch('http://localhost:3000/name')
-            .then(response => response.json())
-            .then(json => console.log(json))
-            .catch(err => console.log(err));
-
-        fetch('http://localhost:3000/name', {
-            method: 'post',
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                name: 'insert'
-            })
-        })
-        .then(response => console.log(response))
-        .catch(err => console.log(err));
-    </script>
+    <script src="./app.js"></script>
+    <div class="control">
+        <button id="home-btn" type="button" class="btn btn-outline-primary">Home</button>
+        <div id="accordion" role="tablist">
+            <div id="models" class="card"></div>
+        </div>
+    </div>
+    <script src="./bootstrap-4.0.0/js/jquery-3.2.1.slim.min.js"></script>
+    <script src="./bootstrap-4.0.0/js/popper.min.js"></script>
+    <script src="./bootstrap-4.0.0/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
