@@ -1,4 +1,4 @@
-/*global Cesium Promise document console*/
+/*global Cesium $ Promise document console*/
 'use strict';
 var viewer = new Cesium.Viewer('cesiumContainer');
 var scene = viewer.scene;
@@ -94,49 +94,43 @@ function loadTilesets(tilesets, tiles) {
                 }
             });
 
-            var modelDiv = document.getElementById('models');
             var index = 0;
             models.forEach(function(modelList) {
                 var div = document.createElement('div');
-                div.className = 'card-header';
-                div.setAttribute('role', 'tab');
-                div.id = 'header' + index;
+                $(div).addClass('card-header')
+                    .attr('role', 'tab')
+                    .attr('id', 'header' + index)
+                    .appendTo($('#models'));
                 var h5 = document.createElement('h5');
-                h5.className = 'mb-0';
+                $(h5).addClass('mb-0')
+                    .appendTo($(div));
                 var a = document.createElement('a');
-                a.setAttribute('data-toggle', 'collapse');
-                a.setAttribute('aria-expanded', 'true');
-                a.setAttribute('aria-controls', 'collapseOne');
-                a.href = '#collapse' + index;
-                a.innerText = modelList.tile;
+                $(a).attr('data-toggle', 'collapse')
+                    .attr('aria-expanded', 'true')
+                    .attr('aria-controls', 'collapse' + index)
+                    .attr('href', '#collapse' + index)
+                    .text(modelList.tile)
+                    .appendTo($(h5));
                 var listDiv = document.createElement('div');
-                listDiv.id = 'collapse' + index;
-                if(index === 0){
-                    listDiv.className = 'collapse show';
-                }
-                else {
-                    listDiv.className = 'collapse';
-                }
-                listDiv.setAttribute('role', 'tabpanel');
-                listDiv.setAttribute('aria-labelledby', 'header' + index++);
-                listDiv.setAttribute('data-parent', 'accordion');
+                $(listDiv).addClass('collapse')
+                    .attr('id', 'collapse' + index)
+                    .attr('role', 'tabpanel')
+                    .attr('aria-labelledby', 'header' + index++)
+                    .attr('data-parent', '#accordion')
+                    .appendTo($('#models'));
                 var cardBody = document.createElement('div');
-                cardBody.className = 'card-body';
+                $(cardBody).addClass('card-body')
+                    .appendTo($(listDiv));
                 var ul = document.createElement('ul');
-                ul.className = 'list-group';
+                $(ul).addClass('list-group')
+                    .appendTo($(cardBody));
                 modelList.models.forEach(function(name, index) {
                     var li = document.createElement('li');
-                    li.className = 'list-group-item';
-                    li.id = modelList.id[index];
-                    li.innerText = name;
-                    ul.appendChild(li);
+                    $(li).addClass('list-group-item')
+                        .attr('id', modelList.id[index])
+                        .html(name)
+                        .appendTo($(ul));
                 });
-                modelDiv.appendChild(div);
-                div.appendChild(h5);
-                h5.appendChild(a);
-                modelDiv.appendChild(listDiv);
-                listDiv.appendChild(cardBody);
-                cardBody.appendChild(ul);
             });
         })
         .catch(function(err) {
@@ -176,30 +170,66 @@ function getModelId (name) {
     }
 }
 
-function chengeTolink (id) {
-    if (!id) {return;}
-    var li = document.getElementById(id);
-    if(!!li) {
-        var a = document.createElement('a');
-        a.className = 'list-group-item list-group-item-action list-group-item-success';
-        a.innerText = li.innerText;
-        a.href = '#';
-        li.parentNode.insertBefore(a, li);
-        li.parentNode.removeChild(li);
+function getModelParentId (id) {
+    for(var i = 0; i < models.length; i++) {
+        var index = models[i].id.indexOf(id);
+        if(index > -1) {
+            return 'collapse' + i;
+        }
     }
+}
+
+function chengeTolink (id) {
+    var a = document.createElement('a');
+    $(a).addClass('list-group-item list-group-item-action list-group-item-success')
+        .html($('#' + id).html())
+        .attr('href', '#')
+        .insertBefore($('#' + id));
+    $('#' + id).remove();
+    $(a).attr('id', id);
+}
+
+function setLinkActive (id, active) {
+    if (active) {
+        $('#' + id).addClass('list-group-item-danger');
+    }
+    else {
+        $('#' + id).removeClass('list-group-item-danger');
+    }
+}
+
+function showCurrentSelect(id) {
+    $('.collapse').removeClass('show');
+    $('#' + getModelParentId(id)).addClass('show');
+    $('#' + id)[0].scrollIntoView(true);
 }
 
 //
 // Inspect
 //
 var handler = new Cesium.ScreenSpaceEventHandler(viewer.canvas);
+var lastFeature;
 // When a feature is left clicked, print its properties
 handler.setInputAction(function(movement) {
     var feature = viewer.scene.pick(movement.position);
     var name;
+    if (lastFeature) {
+        lastFeature.color = Cesium.Color.WHITE;
+        name = lastFeature.getProperty('name');
+        setLinkActive(getModelId(name), false);
+        lastFeature = undefined;
+    }
     if (!Cesium.defined(feature) || !(feature instanceof Cesium.Cesium3DTileFeature)) {
         return;
     }
+    feature.color = new Cesium.Color(1.0, 192 / 255, 203 / 255, 0.8);
+    name = feature.getProperty('name');
+    var id = getModelId(name);
+    chengeTolink(id);
+    setLinkActive(id, true);
+    showCurrentSelect(id);
+    lastFeature = feature;
+
     console.log('Properties:');
     var propertyNames = feature.getPropertyNames();
     var length = propertyNames.length;
@@ -208,8 +238,6 @@ handler.setInputAction(function(movement) {
         var value = feature.getProperty(name);
         console.log('  ' + name + ': ' + value);
     }
-    name = feature.getProperty('name');
-    chengeTolink(getModelId(name));
     if (isDoor(name)) {
         var theOther;
         var theIndex = name.length - 3;
