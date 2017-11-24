@@ -23,9 +23,29 @@
             left: 0px;
             width: 300px;
             height: 100%;
-            padding: 10px 15px;
+            padding: 0px 15px;
             overflow: auto;
             background-color: rgb(255, 255, 255);
+        }
+        div#buttons {
+            margin: 0px;
+            position: -webkit-sticky;
+            position: sticky;
+            background: white;
+            top: 0px;
+            z-index: 100;
+        }
+        button {
+            margin: 10px 5px;
+        }
+        div#accordion {
+            position: relative;
+        }
+        div.card-header {
+            position: -webkit-sticky;
+            position: sticky;
+            top: 60px;
+            z-index: 1;
         }
     </style>
 </head>
@@ -33,7 +53,12 @@
     <div id="cesiumContainer"></div>
     <script src="./app.js"></script>
     <div class="control">
-        <button id="home-btn" type="button" class="btn btn-outline-primary">Home</button>
+        <div id="buttons">
+            <button id="home-btn" type="button" class="btn btn-outline-primary">Home</button>
+            <button id="record-btn" type="button" class="btn btn-outline-primary">Record</button>
+            <button id="save-btn" type="button" class="btn btn-outline-primary">Save</button>
+        </div>
+        
         <div id="accordion" role="tablist">
             <div id="models" class="card"></div>
         </div>

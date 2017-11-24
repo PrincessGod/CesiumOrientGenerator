@@ -1,4 +1,4 @@
-/*global Cesium $ Promise document console*/
+/*global Cesium $ Promise fetch document console*/
 'use strict';
 var viewer = new Cesium.Viewer('cesiumContainer');
 var scene = viewer.scene;
@@ -17,6 +17,19 @@ var qufuTilesets = [
 var tiles = [];
 var models = [];
 var tileRegex = /([^\/]+).b3dm/g;
+var currentModel;
+var db = {
+    name: [],
+    destination: [],
+    direction: [],
+    up: []
+};
+
+Object.keys(db).forEach(function(key) {
+    getPropertys(key).then(function (json) {
+        db[key] = json;
+    });
+});
 
 loadTilesets(qufuTilesets, tiles);
 
@@ -45,13 +58,15 @@ function loadTilesets(tilesets, tiles) {
             viewer.camera.viewBoundingSphere(boundingSphere, new Cesium.HeadingPitchRange(0, -2.0, range));
             viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
 
-            var button = document.getElementById('home-btn');
-            button.onclick = function (){
+            $('#home-btn').on('click', function() {
                 viewer.camera.viewBoundingSphere(boundingSphere, new Cesium.HeadingPitchRange(0, -2.0, range));
                 viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
-            };
+            });
+            $('#record-btn').on('click', function() {
+                recordEvent(currentModel);
+            });
         }).otherwise(function(error) {
-            throw(error);
+            console.log(error);
         });
     });
 
@@ -132,6 +147,14 @@ function loadTilesets(tilesets, tiles) {
                         .appendTo($(ul));
                 });
             });
+
+            $('.card-header').each(function(index, ele) {
+                $(ele).css({
+                    'top': $('#buttons').height() + 'px',
+                    'z-index': ++index,
+                    'background-color': '#F7F7F7'
+                });
+            });
         })
         .catch(function(err) {
             console.log(err);
@@ -170,6 +193,15 @@ function getModelId (name) {
     }
 }
 
+function getModelName(id) {
+    for(var i = 0; i < models.length; i++) {
+        var index = models[i].id.indexOf(id);
+        if(index > -1) {
+            return models[i].models[index];
+        }
+    }
+}
+
 function getModelParentId (id) {
     for(var i = 0; i < models.length; i++) {
         var index = models[i].id.indexOf(id);
@@ -204,40 +236,74 @@ function showCurrentSelect(id) {
     $('#' + id)[0].scrollIntoView(true);
 }
 
+var switchCurrentModel = (function() {
+    var lastFeature;
+    var lastColor;
+    var name;
+    return function(feature, color) {
+        if (lastFeature) {
+            lastFeature.color = lastColor;
+            name = lastFeature.getProperty('name');
+            setLinkActive(getModelId(name), false);
+            lastFeature = undefined;
+            lastColor = undefined;
+        }
+        if (Cesium.defined(feature) && feature instanceof Cesium.Cesium3DTileFeature) {
+            lastFeature = feature;
+            lastColor = feature.color;
+            feature.color = color;
+            name = feature.getProperty('name');
+            var id = getModelId(name);
+            setLinkActive(id, true);
+            showCurrentSelect(id);
+        }
+    };
+})();
+
+function recordCurrentCamera(name) {
+    if(!Cesium.defined(name)) {return;}
+    var index = db.name.indexOf(name);
+    var camera = scene.camera;
+    index = index > -1 ? index : db.name.length;
+    db.name[index] = name;
+    db.destination[index] = [camera.positionWC.x, camera.positionWC.y, camera.positionWC.z];
+    db.direction[index] = [camera.directionWC.x, camera.directionWC.y, camera.directionWC.z];
+    db.up[index] = [camera.upWC.x, camera.upWC.y, camera.upWC.z];
+}
+
+function recordEvent(name) {
+    if (db.name.indexOf(name) < 0) {
+        var id = getModelId(name);
+        chengeTolink(id);
+        $('#' + id).on('click', function() {
+            var modelName = getModelName($(this).attr('id'));
+            var index = db.name.indexOf(modelName);
+            if (index > -1) {
+                scene.camera.flyTo({
+                    destination: Cesium.Cartesian3.fromArray(db.destination[index]),
+                    orientation: {
+                        direction: Cesium.Cartesian3.fromArray(db.direction[index]),
+                        up: Cesium.Cartesian3.fromArray(db.up[index])
+                    }
+                });
+            }
+        });
+    }
+    recordCurrentCamera(name);
+}
+
 //
 // Inspect
 //
 var handler = new Cesium.ScreenSpaceEventHandler(viewer.canvas);
-var lastFeature;
 // When a feature is left clicked, print its properties
 handler.setInputAction(function(movement) {
     var feature = viewer.scene.pick(movement.position);
-    var name;
-    if (lastFeature) {
-        lastFeature.color = Cesium.Color.WHITE;
-        name = lastFeature.getProperty('name');
-        setLinkActive(getModelId(name), false);
-        lastFeature = undefined;
-    }
-    if (!Cesium.defined(feature) || !(feature instanceof Cesium.Cesium3DTileFeature)) {
-        return;
-    }
-    feature.color = new Cesium.Color(1.0, 192 / 255, 203 / 255, 0.8);
-    name = feature.getProperty('name');
+    switchCurrentModel(feature, Cesium.Color.fromBytes(255,192,203, 200));
+    var name = feature.getProperty('name');
     var id = getModelId(name);
     chengeTolink(id);
-    setLinkActive(id, true);
-    showCurrentSelect(id);
-    lastFeature = feature;
-
-    console.log('Properties:');
-    var propertyNames = feature.getPropertyNames();
-    var length = propertyNames.length;
-    for (var i = 0; i < length; ++i) {
-        name = propertyNames[i];
-        var value = feature.getProperty(name);
-        console.log('  ' + name + ': ' + value);
-    }
+    currentModel = name;
     if (isDoor(name)) {
         var theOther;
         var theIndex = name.length - 3;
@@ -250,22 +316,37 @@ handler.setInputAction(function(movement) {
         setDoorShowProperty(name, false);
         setDoorShowProperty(theOther, true);
     }
+    console.log('Properties:');
+    var propertyNames = feature.getPropertyNames();
+    var length = propertyNames.length;
+    for (var i = 0; i < length; ++i) {
+        name = propertyNames[i];
+        var value = feature.getProperty(name);
+        console.log('  ' + name + ': ' + value);
+    }
+
 }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
-// fetch('http://localhost:3000/name')
-//     .then(response => response.json())
-//     .then(json => console.log(json))
-//     .catch(err => console.log(err));
+// JSON server
 
-// fetch('http://localhost:3000/name', {
-//     method: 'post',
-//     headers: {
-//         'Accept': 'application/json',
-//         'Content-Type': 'application/json'
-//     },
-//     body: JSON.stringify({
-//         name: 'insert'
+function getPropertys(property) {
+    return fetch('http://localhost:3000/' + property)
+        .then(function(response) {return response.json();})
+        .then(function(json) {return json;})
+        .catch(function(err) {console.log(err);});
+}
+
+// function postJson() {
+//     Object.keys(db).forEach(function(property) {
+//         fetch('http://localhost:3000/' + property, {
+//             method: 'post',
+//             headers: {
+//                 'Accept': 'application/json',
+//                 'Content-Type': 'application/json'
+//             },
+//             body: JSON.stringify(db[property])
+//         })
+//         .then(response => console.log(response))
+//         .catch(err => console.log(err));
 //     })
-// })
-// .then(response => console.log(response))
-// .catch(err => console.log(err));
+// }
