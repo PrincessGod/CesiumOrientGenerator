@@ -1,6 +1,18 @@
 {
-    "name": [],
-    "destination": [],
-    "direction": [],
-    "up": []
+    "name": [{
+        "context": [],
+        "id": 1
+    }],
+    "destination": [{
+        "context": [],
+        "id": 1
+    }],
+    "direction": [{
+        "context": [],
+        "id": 1
+    }],
+    "up": [{
+        "context": [],
+        "id": 1
+    }]
 }

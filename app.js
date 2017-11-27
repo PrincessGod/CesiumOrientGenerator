@@ -18,6 +18,7 @@ var tiles = [];
 var models = [];
 var tileRegex = /([^\/]+).b3dm/g;
 var currentModel;
+var loaded = false;
 var db = {
     name: [],
     destination: [],
@@ -27,7 +28,7 @@ var db = {
 
 Object.keys(db).forEach(function(key) {
     getPropertys(key).then(function (json) {
-        db[key] = json;
+        db[key] = json || [];
     });
 });
 
@@ -64,6 +65,9 @@ function loadTilesets(tilesets, tiles) {
             });
             $('#record-btn').on('click', function() {
                 recordEvent(currentModel);
+            });
+            $('#save-btn').on('click', function() {
+                postJson();
             });
         }).otherwise(function(error) {
             console.log(error);
@@ -147,7 +151,6 @@ function loadTilesets(tilesets, tiles) {
                         .appendTo($(ul));
                 });
             });
-
             $('.card-header').each(function(index, ele) {
                 $(ele).css({
                     'top': $('#buttons').height() + 'px',
@@ -155,6 +158,12 @@ function loadTilesets(tilesets, tiles) {
                     'background-color': '#F7F7F7'
                 });
             });
+            db.name.forEach(function(name) {
+                var id = getModelId(name);
+                chengeTolink(id);
+                addLinkEvent(id);
+            });
+            loaded = true;
         })
         .catch(function(err) {
             console.log(err);
@@ -233,7 +242,7 @@ function setLinkActive (id, active) {
 function showCurrentSelect(id) {
     $('.collapse').removeClass('show');
     $('#' + getModelParentId(id)).addClass('show');
-    $('#' + id)[0].scrollIntoView(true);
+    $('.control')[0].scrollTop = $('#' + id)[0].offsetTop - $('.card-header')[0].offsetHeight;
 }
 
 var switchCurrentModel = (function() {
@@ -271,23 +280,27 @@ function recordCurrentCamera(name) {
     db.up[index] = [camera.upWC.x, camera.upWC.y, camera.upWC.z];
 }
 
+function addLinkEvent(id) {
+    $('#' + id).on('click', function() {
+        var modelName = getModelName($(this).attr('id'));
+        var index = db.name.indexOf(modelName);
+        if (index > -1) {
+            scene.camera.flyTo({
+                destination: Cesium.Cartesian3.fromArray(db.destination[index]),
+                orientation: {
+                    direction: Cesium.Cartesian3.fromArray(db.direction[index]),
+                    up: Cesium.Cartesian3.fromArray(db.up[index])
+                }
+            });
+        }
+    });
+}
+
 function recordEvent(name) {
     if (db.name.indexOf(name) < 0) {
         var id = getModelId(name);
         chengeTolink(id);
-        $('#' + id).on('click', function() {
-            var modelName = getModelName($(this).attr('id'));
-            var index = db.name.indexOf(modelName);
-            if (index > -1) {
-                scene.camera.flyTo({
-                    destination: Cesium.Cartesian3.fromArray(db.destination[index]),
-                    orientation: {
-                        direction: Cesium.Cartesian3.fromArray(db.direction[index]),
-                        up: Cesium.Cartesian3.fromArray(db.up[index])
-                    }
-                });
-            }
-        });
+        addLinkEvent(id);
     }
     recordCurrentCamera(name);
 }
@@ -299,10 +312,11 @@ var handler = new Cesium.ScreenSpaceEventHandler(viewer.canvas);
 // When a feature is left clicked, print its properties
 handler.setInputAction(function(movement) {
     var feature = viewer.scene.pick(movement.position);
+    if (!loaded || !(Cesium.defined(feature) && feature instanceof Cesium.Cesium3DTileFeature)){
+        return;
+    }
     switchCurrentModel(feature, Cesium.Color.fromBytes(255,192,203, 200));
     var name = feature.getProperty('name');
-    var id = getModelId(name);
-    chengeTolink(id);
     currentModel = name;
     if (isDoor(name)) {
         var theOther;
@@ -330,23 +344,33 @@ handler.setInputAction(function(movement) {
 // JSON server
 
 function getPropertys(property) {
-    return fetch('http://localhost:3000/' + property)
+    return fetch('http://localhost:3000/' + property + '/1')
         .then(function(response) {return response.json();})
-        .then(function(json) {return json;})
+        .then(function(json) {return json.context;})
         .catch(function(err) {console.log(err);});
 }
 
-// function postJson() {
-//     Object.keys(db).forEach(function(property) {
-//         fetch('http://localhost:3000/' + property, {
-//             method: 'post',
-//             headers: {
-//                 'Accept': 'application/json',
-//                 'Content-Type': 'application/json'
-//             },
-//             body: JSON.stringify(db[property])
-//         })
-//         .then(response => console.log(response))
-//         .catch(err => console.log(err));
-//     })
-// }
+function postJson() {
+    Object.keys(db).forEach(function(property) {
+        fetch('http://localhost:3000/' + property + '/1', {
+            method: 'put',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                context: db[property],
+                id: 1
+            })
+        })
+        .then(function(response) {
+            return response.json();
+        })
+        .then(function(json) {
+            console.log(json);
+        })
+        .catch(function(err) {
+            console.log(err);
+        });
+    });
+}
