@@ -19,6 +19,7 @@ var models = [];
 var tileRegex = /([^\/]+).b3dm/g;
 var currentModel;
 var loaded = false;
+var hideModels = false;
 var db = {
     name: [],
     destination: [],
@@ -68,6 +69,14 @@ function loadTilesets(tilesets, tiles) {
             });
             $('#save-btn').on('click', function() {
                 postJson();
+            });
+            $('#hide-btn').on('click', function() {
+                hideModels = !$('#hide-btn').hasClass('active');
+                if(loaded) {
+                    db.name.forEach(function(name) {
+                        setModelShowProperty(name, !hideModels);
+                    });
+                }
             });
         }).otherwise(function(error) {
             console.log(error);
@@ -173,7 +182,7 @@ function loadTilesets(tilesets, tiles) {
 //
 // Operate
 //
-function setDoorShowProperty(doorName, show) {
+function setModelShowProperty(modelName, show) {
     for (var i = 0; i < tiles.length; i++) {
         var tile = tiles[i];
         var tileContent = tile.content;
@@ -181,7 +190,7 @@ function setDoorShowProperty(doorName, show) {
         for (var j = 0; j < batchtableLength; j++) {
             var feature = tileContent.getFeature(j);
             var name = feature.getProperty('name');
-            if (name === doorName) {
+            if (name === modelName) {
                 feature.show = show;
                 return;
             }
@@ -303,6 +312,9 @@ function recordEvent(name) {
         addLinkEvent(id);
     }
     recordCurrentCamera(name);
+    if(hideModels) {
+        setModelShowProperty(name, !hideModels);
+    }
 }
 
 //
@@ -312,10 +324,10 @@ var handler = new Cesium.ScreenSpaceEventHandler(viewer.canvas);
 // When a feature is left clicked, print its properties
 handler.setInputAction(function(movement) {
     var feature = viewer.scene.pick(movement.position);
+    switchCurrentModel(feature, Cesium.Color.fromBytes(255,192,203, 200));
     if (!loaded || !(Cesium.defined(feature) && feature instanceof Cesium.Cesium3DTileFeature)){
         return;
     }
-    switchCurrentModel(feature, Cesium.Color.fromBytes(255,192,203, 200));
     var name = feature.getProperty('name');
     currentModel = name;
     if (isDoor(name)) {
@@ -327,8 +339,8 @@ handler.setInputAction(function(movement) {
         else {
             theOther = name.substr(0, theIndex) + 'O' + name.substr(theIndex + 1);
         }
-        setDoorShowProperty(name, false);
-        setDoorShowProperty(theOther, true);
+        setModelShowProperty(name, false);
+        setModelShowProperty(theOther, true);
     }
     console.log('Properties:');
     var propertyNames = feature.getPropertyNames();
